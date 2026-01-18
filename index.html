@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Wedding Court</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #ff9eb5; /* Cute Pink */
+            --secondary: #bde0fe; /* Soft Blue */
+            --accent: #ff6b8b; /* Darker Pink */
+            --bg: #fff0f5; /* Lavender Blush */
+            --text: #555;
+            --white: #ffffff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(var(--primary) 1px, transparent 1px),
+                radial-gradient(var(--primary) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Vertical centering */
+            min-height: 100vh;
+        }
+
+        /* --- UI COMPONENTS --- */
+        .card {
+            background: var(--white);
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(255, 107, 139, 0.15);
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            border: 4px solid var(--white);
+            transition: all 0.3s ease;
+            margin: 0 auto; /* Horizontal centering */
+        }
+
+        h1 {
+            font-family: 'Pacifico', cursive;
+            color: var(--accent);
+            font-size: 3rem;
+            margin: 0 0 10px 0;
+            text-shadow: 2px 2px 0px #fff;
+        }
+
+        p { font-size: 1.1rem; color: #777; }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 700;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px;
+            box-shadow: 0 4px 10px rgba(255, 107, 139, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(255, 107, 139, 0.4);
+            background: #ff5c7c;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: #4a7c9d;
+        }
+        
+        .input-code {
+            padding: 15px;
+            font-size: 1.2rem;
+            border: 3px solid var(--primary);
+            border-radius: 15px;
+            text-align: center;
+            outline: none;
+            color: var(--accent);
+            font-weight: bold;
+            width: 200px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* --- VIEWS --- */
+        .view { display: none; width: 100%; }
+        .view.active { display: block; animation: fadeIn 0.5s; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- LANDING --- */
+        .landing-options {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            margin-top: 30px;
+        }
+
+        .mode-selection {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* --- ROOM / CEREMONY --- */
+        .room-header {
+            background: var(--bg);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px dashed var(--primary);
+        }
+
+        .code-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent);
+            font-family: monospace;
+            background: white;
+            padding: 5px 15px;
+            border-radius: 10px;
+            margin: 0 10px;
+            letter-spacing: 3px;
+        }
+
+        .partners-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .partners-grid { grid-template-columns: 1fr; }
+        }
+
+        .partner-col {
+            background: #fff8fb;
+            padding: 20px;
+            border-radius: 20px;
+            border: 2px solid transparent;
+        }
+        
+        .partner-col.my-turn {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(255, 107, 139, 0.1);
+            position: relative;
+        }
+
+        .partner-col.my-turn::before {
+            content: "You";
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent);
+            color: white;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        /* Hide "You" badge in local mode since both are "You" */
+        .local-mode .partner-col.my-turn::before {
+            display: none; 
+        }
+
+        .partner-name-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            text-align: center;
+            font-family: 'Quicksand', sans-serif;
+            margin-bottom: 15px;
+        }
+        
+        .partner-name-input:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+
+        /* Signature Areas */
+        .sig-box {
+            background: white;
+            border: 3px dashed var(--secondary);
+            border-radius: 15px;
+            height: 150px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* The Canvas for ME to draw */
+        canvas.active-pad {
+            width: 100%;
+            height: 100%;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%23ff6b8b" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>') 0 24, auto;
+            touch-action: none;
+        }
+
+        /* The Image for ME to see Partner's sig */
+        img.remote-sig {
+            max-width: 90%;
+            max-height: 90%;
+            display: block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+        }
+        .status-waiting { background: #eee; color: #888; }
+        .status-ready { background: #d4edda; color: #155724; }
+
+        /* --- CERTIFICATE VIEW --- */
+        #certificate-render {
+            background: #fff;
+            padding: 40px;
+            border: 8px double var(--primary);
+            border-radius: 10px;
+            margin: 20px auto;
+            position: relative;
+        }
+
+        #certificate-render::after {
+            content: "♥";
+            position: absolute;
+            top: 10px; right: 10px; color: var(--primary); font-size: 24px;
+        }
+        #certificate-render::before {
+            content: "♥";
+            position: absolute;
+            top: 10px; left: 10px; color: var(--primary); font-size: 24px;
+        }
+
+        .cert-title {
+            font-family: 'Pacifico', cursive;
+            color: var(--accent);
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .cert-names {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #444;
+            margin: 20px 0;
+            line-height: 1.4;
+        }
+
+        .cert-sig-row {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 40px;
+        }
+
+        .cert-sig-item img {
+            height: 60px;
+            border-bottom: 2px solid var(--text);
+            padding-bottom: 5px;
+        }
+
+        .cert-footer {
+            margin-top: 30px;
+            font-size: 0.9rem;
+            color: var(--primary);
+        }
+
+        /* --- Loading --- */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- Mode Banner --- */
+        .mode-banner {
+            position: fixed;
+            bottom: 10px;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.8);
+            padding: 5px 10px;
+            border-radius: 10px;
+            color: #888;
+        }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- === VIEW 1: LANDING === -->
+    <div id="view-landing" class="view active">
+        <div class="card">
+            <h1>⚖️ Online Wedding Court ⚖️</h1>
+            <p>A digital court for your love story.</p>
+            
+            <div id="auth-loader" class="loader"></div>
+
+            <div id="landing-actions" style="display:none;" class="landing-options">
+                
+                <!-- Initial Choice -->
+                <div id="mode-choice" class="landing-options">
+                    <p style="margin-bottom:5px; color:var(--primary); font-weight:bold;">How are you marrying today?</p>
+                    <div class="mode-selection">
+                        <button class="btn btn-secondary" onclick="startLocalMode()" style="background:#bde0fe; color:#4a7c9d;">
+                            Together<br><span style="font-size:0.8rem; font-weight:normal;">(Same Device)</span>
+                        </button>
+                        <button class="btn" onclick="showRemoteOptions()">
+                            Long Distance<br><span style="font-size:0.8rem; font-weight:normal;">(Online)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Remote Options (Hidden initially) -->
+                <div id="remote-options" class="landing-options hidden">
+                    <button class="btn" onclick="createRoom()">Start New Ceremony</button>
+                    <div style="width: 100%; border-bottom: 2px dashed #eee; height: 1px; margin: 10px 0;"></div>
+                    <p>Or join your partner:</p>
+                    <input type="text" id="join-code" class="input-code" placeholder="CODE" maxlength="6">
+                    <button class="btn btn-secondary" onclick="joinRoom()">Join Ceremony</button>
+                    <button class="btn-secondary" style="background:transparent; color:#888; margin-top:10px; font-size:0.9rem;" onclick="resetToModeChoice()">Back</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- === VIEW 2: THE CEREMONY ROOM === -->
+    <div id="view-room" class="view">
+        <div class="card">
+            <div id="room-header-container" class="room-header">
+                <p style="margin:0;">Share this code with your partner:</p>
+                <span id="room-code-display" class="code-display">...</span>
+            </div>
+
+            <div class="partners-grid" id="partners-grid-container">
+                
+                <!-- Partner 1 Column -->
+                <div id="col-p1" class="partner-col">
+                    <span class="status-badge status-ready">Partner 1</span>
+                    <input type="text" id="p1-name" class="partner-name-input" placeholder="Name..." readonly>
+                    <div class="sig-box">
+                        <!-- Canvas for P1, Img for P2 -->
+                        <canvas id="canvas-p1" class="active-pad" style="display:none;"></canvas>
+                        <img id="img-p1" class="remote-sig" style="display:none;">
+                    </div>
+                    <div id="p1-controls" style="margin-top:10px; display:none;">
+                        <button class="btn-secondary" style="font-size:0.8rem; padding: 5px 15px;" onclick="clearCanvasById('canvas-p1', 'p1Sig')">Clear</button>
+                    </div>
+                </div>
+
+                <!-- Partner 2 Column -->
+                <div id="col-p2" class="partner-col">
+                    <span class="status-badge" id="p2-badge">Waiting...</span>
+                    <input type="text" id="p2-name" class="partner-name-input" placeholder="Name..." readonly>
+                    <div class="sig-box">
+                        <canvas id="canvas-p2" class="active-pad" style="display:none;"></canvas>
+                        <img id="img-p2" class="remote-sig" style="display:none;">
+                    </div>
+                    <div id="p2-controls" style="margin-top:10px; display:none;">
+                        <button class="btn-secondary" style="font-size:0.8rem; padding: 5px 15px;" onclick="clearCanvasById('canvas-p2', 'p2Sig')">Clear</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <p id="room-status" style="margin-top: 20px; font-style: italic; font-size: 0.9rem;">Waiting for signatures...</p>
+
+            <button id="btn-marry" class="btn" disabled onclick="finalizeMarriage()">💍 Marry Us! 💍</button>
+        </div>
+    </div>
+
+    <!-- === VIEW 3: CERTIFICATE === -->
+    <div id="view-cert" class="view">
+        <div class="card" style="background: var(--bg); box-shadow: none;">
+            <div id="certificate-render">
+                <div class="cert-title">Certificate of Marriage</div>
+                <p>This certifies that on <span id="cert-date"></span></p>
+                
+                <div class="cert-names">
+                    <span id="cert-p1-name">Partner 1</span>
+                    <br><span style="color:var(--accent); font-size:1.5rem;">&</span><br>
+                    <span id="cert-p2-name">Partner 2</span>
+                </div>
+
+                <p>Have promised to share their bandwidth, debugging logs, and hearts forever.</p>
+
+                <div class="cert-sig-row">
+                    <div class="cert-sig-item">
+                        <img id="cert-p1-sig" src="">
+                        <div style="font-size:0.8rem; border-top:1px solid #ccc; width:120px; margin:0 auto;">Partner 1</div>
+                    </div>
+                    <div style="width: 50px;">
+                        <span style="font-size:40px; color: gold;">★</span>
+                    </div>
+                    <div class="cert-sig-item">
+                        <img id="cert-p2-sig" src="">
+                        <div style="font-size:0.8rem; border-top:1px solid #ccc; width:120px; margin:0 auto;">Partner 2</div>
+                    </div>
+                </div>
+
+                <div class="cert-footer">
+                    Officially cute & valid in our hearts.
+                </div>
+            </div>
+
+            <button class="btn" onclick="downloadCertificate()">Download Image</button>
+            <button class="btn btn-secondary" onclick="location.reload()">Back to Home</button>
+        </div>
+    </div>
+    
+    <div id="mode-display" class="mode-banner">Initializing...</div>
+
+    <script>
+        // --- DATA SERVICE (Handles Firebase vs LocalStorage) ---
+        
+        const DataService = {
+            mode: 'loading',
+            appId: 'default-app-id',
+            db: null,
+            auth: null,
+            currentUser: null,
+            listeners: {}, // for local mode
+
+            init: async () => {
+                try {
+                    // Try to initialize Firebase using environment variables
+                    if (typeof __firebase_config !== 'undefined') {
+                        const firebaseConfig = JSON.parse(__firebase_config);
+                        DataService.appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                        const app = firebase.initializeApp(firebaseConfig);
+                        DataService.auth = firebase.auth();
+                        DataService.db = firebase.firestore();
+                        DataService.mode = 'firebase';
+
+                        // Auth Logic
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await DataService.auth.signInWithCustomToken(__initial_auth_token);
+                        } else {
+                            await DataService.auth.signInAnonymously();
+                        }
+                        DataService.currentUser = DataService.auth.currentUser;
+                    } else {
+                        throw new Error("Missing Config");
+                    }
+                } catch (e) {
+                    // Fallback to LocalStorage
+                    console.log("Using Local Demo Mode");
+                    DataService.mode = 'local';
+                    DataService.currentUser = { uid: 'local-user-' + Math.random().toString(36).substr(2, 9) };
+                    
+                    // Setup storage listener for multi-tab
+                    window.addEventListener('storage', (e) => {
+                        if (e.key.startsWith('marriage_room_')) {
+                            const roomId = e.key.replace('marriage_room_', '');
+                            if (DataService.listeners[roomId]) {
+                                const data = JSON.parse(e.newValue);
+                                DataService.listeners[roomId](data);
+                            }
+                        }
+                    });
+                }
+                
+                // Update UI
+                const label = DataService.mode === 'firebase' ? 'Online Mode (Cloud)' : 'Demo Mode (Local Storage)';
+                document.getElementById('mode-display').innerText = label;
+                document.getElementById('auth-loader').style.display = 'none';
+                document.getElementById('landing-actions').style.display = 'flex';
+            },
+
+            // --- API METHODS ---
+
+            createRoom: async () => {
+                const code = generateCode();
+                const initialData = {
+                    created: new Date().toISOString(),
+                    p1Name: '', p2Name: '', p1Sig: '', p2Sig: '',
+                    status: 'waiting',
+                    dateStr: new Date().toLocaleDateString()
+                };
+
+                if (DataService.mode === 'firebase') {
+                    await DataService.db.collection('artifacts').doc(DataService.appId)
+                        .collection('public').doc('data').collection('marriages').doc(code).set(initialData);
+                } else {
+                    localStorage.setItem('marriage_room_' + code, JSON.stringify(initialData));
+                }
+                return code;
+            },
+
+            getRoom: async (code) => {
+                if (DataService.mode === 'firebase') {
+                    const doc = await DataService.db.collection('artifacts').doc(DataService.appId)
+                        .collection('public').doc('data').collection('marriages').doc(code).get();
+                    return doc.exists ? doc.data() : null;
+                } else {
+                    const data = localStorage.getItem('marriage_room_' + code);
+                    return data ? JSON.parse(data) : null;
+                }
+            },
+
+            subscribe: (code, callback) => {
+                if (DataService.mode === 'firebase') {
+                    return DataService.db.collection('artifacts').doc(DataService.appId)
+                        .collection('public').doc('data').collection('marriages').doc(code)
+                        .onSnapshot((doc) => {
+                            if (doc.exists) callback(doc.data());
+                        });
+                } else {
+                    // Local Mode Subscription
+                    DataService.listeners[code] = callback;
+                    // Initial Call
+                    const current = localStorage.getItem('marriage_room_' + code);
+                    if (current) callback(JSON.parse(current));
+                    // Return unsubscribe function
+                    return () => { delete DataService.listeners[code]; };
+                }
+            },
+
+            updateRoom: async (code, data) => {
+                if (DataService.mode === 'firebase') {
+                    await DataService.db.collection('artifacts').doc(DataService.appId)
+                        .collection('public').doc('data').collection('marriages').doc(code).update(data);
+                } else {
+                    const currentKey = 'marriage_room_' + code;
+                    const currentData = JSON.parse(localStorage.getItem(currentKey) || '{}');
+                    const newData = { ...currentData, ...data };
+                    localStorage.setItem(currentKey, JSON.stringify(newData));
+                    
+                    // Manually trigger callback for THIS tab (storage event only fires on OTHER tabs)
+                    if (DataService.listeners[code]) {
+                        DataService.listeners[code](newData);
+                    }
+                }
+            }
+        };
+
+        // --- APP STATE ---
+        let ceremonyMode = 'remote'; // 'remote' or 'local'
+        let myRole = null; 
+        let roomId = null;
+        let unsubscribe = null;
+        let localData = { p1Name:'', p2Name:'', p1Sig:'', p2Sig:'', dateStr: '' }; // State for local mode
+
+        // --- INITIALIZATION ---
+        DataService.init();
+
+        // --- NAVIGATION & MODES ---
+        function showRemoteOptions() {
+            ceremonyMode = 'remote';
+            document.getElementById('mode-choice').classList.add('hidden');
+            document.getElementById('remote-options').classList.remove('hidden');
+        }
+
+        function resetToModeChoice() {
+            document.getElementById('remote-options').classList.add('hidden');
+            document.getElementById('mode-choice').classList.remove('hidden');
+        }
+
+        function startLocalMode() {
+            ceremonyMode = 'local';
+            roomId = null;
+            localData = { 
+                p1Name:'', p2Name:'', p1Sig:'', p2Sig:'', 
+                status: 'waiting', 
+                dateStr: new Date().toLocaleDateString() 
+            };
+            
+            enterRoomView();
+        }
+
+        // --- CORE FUNCTIONS ---
+
+        function generateCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let result = '';
+            for (let i = 0; i < 6; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        async function createRoom() {
+            ceremonyMode = 'remote';
+            roomId = await DataService.createRoom();
+            myRole = 'p1';
+            enterRoomView();
+        }
+
+        async function joinRoom() {
+            ceremonyMode = 'remote';
+            const codeInput = document.getElementById('join-code').value.toUpperCase().trim();
+            if (codeInput.length !== 6) { alert("Invalid Code"); return; }
+
+            const roomData = await DataService.getRoom(codeInput);
+            if (!roomData) { alert("Room not found!"); return; }
+
+            roomId = codeInput;
+            myRole = 'p2';
+            enterRoomView();
+        }
+
+        function enterRoomView() {
+            document.getElementById('view-landing').classList.remove('active');
+            document.getElementById('view-room').classList.add('active');
+
+            if (ceremonyMode === 'remote') {
+                document.getElementById('room-header-container').style.display = 'block';
+                document.getElementById('room-code-display').innerText = roomId;
+                document.getElementById('partners-grid-container').classList.remove('local-mode');
+
+                setupUIForRole(); // Setup just my side
+
+                if (unsubscribe) unsubscribe();
+                unsubscribe = DataService.subscribe(roomId, (data) => {
+                    updateUIFromData(data);
+                });
+            } else {
+                // LOCAL MODE SETUP
+                document.getElementById('room-header-container').style.display = 'none';
+                document.getElementById('partners-grid-container').classList.add('local-mode');
+                document.getElementById('p2-badge').classList.add('status-ready');
+                document.getElementById('p2-badge').innerText = "Partner 2";
+
+                // Setup BOTH sides
+                setupSide('p1');
+                setupSide('p2');
+                
+                // Initial check
+                updateUIFromData(localData);
+            }
+        }
+
+        // --- UI SYNC ---
+
+        // Helper to enable one side's input/canvas
+        function setupSide(role) {
+            const canvasId = role === 'p1' ? 'canvas-p1' : 'canvas-p2';
+            const fieldName = role === 'p1' ? 'p1Sig' : 'p2Sig';
+            const controlsId = role === 'p1' ? 'p1-controls' : 'p2-controls';
+            const inputId = role === 'p1' ? 'p1-name' : 'p2-name';
+            const colId = role === 'p1' ? 'col-p1' : 'col-p2';
+
+            document.getElementById(colId).classList.add('my-turn');
+            const input = document.getElementById(inputId);
+            input.removeAttribute('readonly');
+            input.addEventListener('input', (e) => {
+                const data = {};
+                data[role + 'Name'] = e.target.value;
+                syncData(data);
+            });
+
+            document.getElementById(canvasId).style.display = 'block';
+            document.getElementById(controlsId).style.display = 'block';
+            
+            // Hide the image placeholders since we are drawing
+            if(role === 'p1') document.getElementById('img-p1').style.display = 'none';
+            if(role === 'p2') document.getElementById('img-p2').style.display = 'none';
+
+            setupCanvas(canvasId, fieldName);
+        }
+
+        function setupUIForRole() {
+            // REMOTE MODE: Only setup "my" side
+            const p1Input = document.getElementById('p1-name');
+            const p2Input = document.getElementById('p2-name');
+            const p1Col = document.getElementById('col-p1');
+            const p2Col = document.getElementById('col-p2');
+
+            // Reset visibilities
+            document.getElementById('canvas-p1').style.display = 'none';
+            document.getElementById('img-p1').style.display = 'none';
+            document.getElementById('canvas-p2').style.display = 'none';
+            document.getElementById('img-p2').style.display = 'none';
+
+            if (myRole === 'p1') {
+                setupSide('p1');
+                document.getElementById('img-p2').style.display = 'block'; // See P2 as img
+            } else {
+                setupSide('p2');
+                document.getElementById('img-p1').style.display = 'block'; // See P1 as img
+            }
+        }
+
+        function syncData(data) {
+            if (ceremonyMode === 'local') {
+                // Update local state and refresh UI check
+                Object.assign(localData, data);
+                updateUIFromData(localData);
+            } else {
+                if (!roomId) return;
+                DataService.updateRoom(roomId, data);
+            }
+        }
+
+        function updateUIFromData(data) {
+            // Update Inputs safely
+            const p1In = document.getElementById('p1-name');
+            const p2In = document.getElementById('p2-name');
+
+            // Only update value if focused to prevent cursor jumping, OR if we are just viewing (remote partner)
+            if (ceremonyMode === 'remote') {
+                if (document.activeElement !== p1In) p1In.value = data.p1Name || '';
+                if (document.activeElement !== p2In) p2In.value = data.p2Name || '';
+            } else {
+                // Local mode: inputs update themselves via listeners, no need to force set value unless empty
+            }
+
+            // Update Signatures (Images)
+            // In local mode, we don't show images, we show canvases.
+            if (ceremonyMode === 'remote') {
+                if (myRole === 'p1') {
+                    if (data.p2Sig) document.getElementById('img-p2').src = data.p2Sig;
+                } else {
+                    if (data.p1Sig) document.getElementById('img-p1').src = data.p1Sig;
+                }
+            }
+
+            // Badge (Remote only)
+            if (ceremonyMode === 'remote') {
+                if (data.p2Name || data.p2Sig) {
+                    document.getElementById('p2-badge').classList.add('status-ready');
+                    document.getElementById('p2-badge').innerText = "Partner 2 (Here!)";
+                }
+            }
+
+            // Button
+            const btn = document.getElementById('btn-marry');
+            if (data.p1Name && data.p2Name && data.p1Sig && data.p2Sig) {
+                btn.disabled = false;
+                document.getElementById('room-status').innerText = "Both ready! Click to marry!";
+                document.getElementById('room-status').style.color = "var(--primary)";
+                document.getElementById('room-status').style.fontWeight = "bold";
+            } else {
+                btn.disabled = true;
+                document.getElementById('room-status').innerText = "Waiting for names and signatures...";
+            }
+
+            if (data.status === 'married') showCertificate(data);
+        }
+
+        // --- CANVAS ---
+
+        function setupCanvas(canvasId, fieldName) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#555';
+
+            let isDrawing = false;
+            function getPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const cx = e.touches ? e.touches[0].clientX : e.clientX;
+                const cy = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: cx - rect.left, y: cy - rect.top };
+            }
+            
+            function start(e) { e.preventDefault(); isDrawing = true; ctx.beginPath(); const {x,y} = getPos(e); ctx.moveTo(x,y); }
+            function draw(e) { if(!isDrawing) return; e.preventDefault(); const {x,y} = getPos(e); ctx.lineTo(x,y); ctx.stroke(); }
+            function stop() { if(isDrawing) { isDrawing = false; syncData({ [fieldName]: canvas.toDataURL() }); } }
+
+            canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stop); canvas.addEventListener('mouseout', stop);
+            canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', draw);
+            canvas.addEventListener('touchend', stop);
+        }
+
+        function clearCanvasById(id, fieldName) {
+            const canvas = document.getElementById(id);
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            syncData({ [fieldName]: '' });
+        }
+
+        // --- FINAL STEPS ---
+
+        function finalizeMarriage() {
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#ff9eb5', '#bde0fe', '#ffffff'] });
+            syncData({ status: 'married' });
+        }
+
+        function showCertificate(data) {
+            document.getElementById('view-room').classList.remove('active');
+            document.getElementById('view-cert').classList.add('active');
+            document.getElementById('cert-p1-name').innerText = data.p1Name;
+            document.getElementById('cert-p2-name').innerText = data.p2Name;
+            document.getElementById('cert-date').innerText = data.dateStr;
+            document.getElementById('cert-p1-sig').src = data.p1Sig;
+            document.getElementById('cert-p2-sig').src = data.p2Sig;
+            setTimeout(() => { confetti({ particleCount: 100, spread: 100, origin: { y: 0.6 } }); }, 500);
+        }
+
+        function downloadCertificate() {
+            const el = document.getElementById('certificate-render');
+            html2canvas(el, { scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'kawaii-marriage-cert.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>
